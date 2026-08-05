@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* Design tokens from docs/assignment-brief.md Section 3.1 */
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-manrope);
+
+  /* Ink */
+  --color-ink: #12161f;
+  --color-ink-body: #333b4a;
+  --color-ink-muted: #697086;
+  --color-ink-tint: #e7e9ee;
+
+  /* Surface */
+  --color-surface: #ffffff;
+  --color-paper: #f6f7fa;
+  --color-line: #e3e6ec;
+
+  /* Brand */
+  --color-brand: #3d4fe0;
+  --color-brand-hover: #2c3ab8;
+  --color-brand-tint: #eef0fd;
+
+  /* Job status colors */
+  --color-status-quote-requested: #697086;
+  --color-status-quoted: #2c7be5;
+  --color-status-confirmed: #6d3fd1;
+  --color-status-in-progress: #c67c11;
+  --color-status-completed: #0f9d63;
+  --color-status-cancelled: #d0453c;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink-body);
+  font-family: var(--font-sans);
+}
