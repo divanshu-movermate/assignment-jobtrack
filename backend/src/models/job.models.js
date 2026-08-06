@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const JOBSTATUSES = [
+const jobStatuses = [
   "quote_requested",
   "quoted",
   "confirmed",
@@ -62,7 +62,7 @@ const jobSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: JOB_STATUSES,
+      enum: jobStatuses,
       default: "quote_requested",
     },
     assignedCrew: [
@@ -91,6 +91,6 @@ jobSchema.index({ assignedCrew: 1 });
 jobSchema.index({ customer: 1 });
 
 
-jobSchema.statics.STATUSES = JOB_STATUSES;
+jobSchema.statics.Statuses = jobStatuses;
 
 module.exports = mongoose.model("Job", jobSchema);
