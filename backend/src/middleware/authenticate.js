@@ -7,6 +7,8 @@ const jwt = require("jsonwebtoken");
 // note the tradeoff either way (see the brief's note on token storage).
 function authenticate(req, res, next) {
   try {
+
+    //Token verification
     const bearer = req.headers.authorization?.startsWith("Bearer ")
       ? req.headers.authorization.split(" ")[1]
       : null;
@@ -16,7 +18,18 @@ function authenticate(req, res, next) {
       return res.status(401).json({ success: false, error: "Not authenticated" });
     }
 
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+
+    //User current state
+    const user = await User.findById(decodedToken._id).select(
+      "-password -refreshToken"
+    );
+
+    if (!user) {
+      throw new ApiError(401, "Invalid access token");
+    }
+
+    req.user = user;
     next();
   } catch (err) {
     return res.status(401).json({ success: false, error: "Invalid or expired token" });
