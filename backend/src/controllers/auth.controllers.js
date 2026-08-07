@@ -120,18 +120,6 @@ const meUser = asyncHandler(async (req, res) => {
 
 
 const logoutUser = asyncHandler(async (req, res) => {
-  await User.findByIdAndUpdate(
-    req.user._id,
-    {
-      $unset: {
-        refreshToken: true,
-      },
-    },
-    {
-      new: true,                     // return the updated document (not required here, but good practice)
-    }
-  );
-
   const options = {
     httpOnly: true,
     secure: true,
