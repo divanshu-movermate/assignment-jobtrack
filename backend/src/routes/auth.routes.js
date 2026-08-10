@@ -5,13 +5,14 @@ const authenticate = require("../middleware/authenticate");
 const authorize = require("../middleware/authorize");
 const validate = require("../middleware/validate");
 const { loginSchema, createUserSchema} = require("../schemas/auth.schemas");
-const authController = require("../controllers/authController");
+const authController = require("../controllers/auth.controllers");
+
 
 
 
 router.post("/login", validate(loginSchema), authController.loginUser);
 router.post("/logout", authController.logoutUser);
-router.get("/me", authenticate, authController.meUser);
+router.get("/dashboard", authenticate, authController.meUser);
 router.post(
   "/users",
   authenticate,
@@ -19,5 +20,8 @@ router.post(
   validate(createUserSchema),
   authController.createUser
 );
+
+
+
 
 module.exports = router;

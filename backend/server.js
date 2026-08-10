@@ -9,7 +9,7 @@ const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 
 const connectDB = require("./src/config/db");
-const routes = require("./src/routes");
+const routes = require("./src/routes/index");
 const errorHandler = require("./src/middleware/errorHandler");
 
 const app = express();

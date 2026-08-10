@@ -1,11 +1,12 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/user.models");
 
 // Verifies the JWT (from an httpOnly cookie, or an Authorization: Bearer
 // header as a fallback) and attaches the decoded payload to req.user.
 // TODO(intern): once the User model exists, consider looking the user up by
 // decoded.id instead of trusting the token payload directly - your call,
 // note the tradeoff either way (see the brief's note on token storage).
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   try {
 
     //Token verification
@@ -26,7 +27,7 @@ function authenticate(req, res, next) {
     );
 
     if (!user) {
-      throw new ApiError(401, "Invalid access token");
+      return res.status(401).json({ success: false, error: "Invalid access token" });
     }
 
     req.user = user;

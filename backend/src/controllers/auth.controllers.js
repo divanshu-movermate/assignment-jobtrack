@@ -1,6 +1,7 @@
-const User = require("../models/User");
+const User = require("../models/user.models");
 const ApiResponse = require("../utils/ApiResponse")
 const asyncHandler = require("../utils/asyncHandler")
+const generateToken = require("../utils/generateToken");
 
 
 
@@ -24,7 +25,8 @@ const createUser = asyncHandler( async (req, res)=>{
     const existedUser = await User.findOne({ email });
 
     if(existedUser){
-        return res.status(409).json({ success: false, error: "Email already exist" });
+        return res.status(409)
+        .json({ success: false, error: "Email already exist" });
     }
 
 
@@ -35,13 +37,15 @@ const createUser = asyncHandler( async (req, res)=>{
         role,
     })
 
-    const createdUser = await User.findById(user._id).select(
+    const createdUser = await User.findById(user._id)
+    .select(
         "-password -refreshToken"
     )
 
 
     if(!createdUser){
-        return res.status(500).json({ success: false, error: "Something Went wrong while registering the user" });
+        return res.status(500)
+        .json({ success: false, error: "Something Went wrong while registering the user" });
     }
 
     return res.status(201).json(
@@ -50,74 +54,60 @@ const createUser = asyncHandler( async (req, res)=>{
  });
 
 
-const loginUser = asyncHandler( async (req, res)=>{
-    const {email, password} = req.body;
-    
-    // if(!username && !email){
-    //     return res.status(400).json({ success: false, error: "Username or email is required" });
-    // }  verify it by zod
-    const user = await User.findOne({ email });
 
-    if(!user){
-        return res.status(401).json({ success: false, error: "Email already exists" });
-    }
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
 
-    const isPasswordValid = await user.isPasswordCorrect(password);
+  const user = await User.findOne({ email });
 
-    if (!isPasswordValid) {
-        return res.status(401).json({ success: false, error: "Invalid Credentials" });
-    }
+  if (!user) {
+    return res.status(401)
+    .json({ success: false, error: "User with email already exists." });
+  }
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+  const isPasswordValid = await user.isPasswordCorrect(password);
 
-    const loggedInUser = await User.findById(user._id).select(
-        "-password -refreshToken"
-    );
+  if (!isPasswordValid) {
+    return res.status(401).json({ success: false, error: "Invalid credentials" });
+  }
 
-    const options = {
-        httpOnly: true,
-        secure: true
-    }
+  const token = generateToken({ _id: user._id, email: user.email, role: user.role });
 
+  const loggedInUser = await User.findById(user._id)
+  .select("-password -refreshToken");
 
-    return res
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
+    .cookie("token", token, options)
     .json(
       new ApiResponse(
         200,
-        { user: loggedInUser, accessToken, refreshToken },
+        { user: loggedInUser, token },
         "User logged in successfully"
       )
     );
-
-
-
-
- });
+});
 
 const adminUser = asyncHandler(async (req, res) => {
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        { user: req.user },
-        `Welcome ${req.user.fullName} to Admin dashboard`
-      )
-    );
-  });
-
+  return res.status(200).json(
+    new ApiResponse(200,
+         { user: req.user },
+          `Welcome ${req.user.name} to Admin dashboard`)
+  );
+});
 
 const meUser = asyncHandler(async (req, res) => {
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        { user: req.user },
-        `Welcome ${req.user.name} to personal dashboard`
-      )
-    );
-  });
-
+  return res.status(200).json(
+    new ApiResponse(200,
+         { user: req.user },
+          `Welcome ${req.user.name} to personal dashboard`)
+  );
+});
 
 const logoutUser = asyncHandler(async (req, res) => {
   const options = {
@@ -127,9 +117,9 @@ const logoutUser = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
-    .json(new ApiResponse(200, {}, "User logged out successfully"));
+    .clearCookie("token", options)
+    .json(new ApiResponse(200,
+         {}, "User logged out successfully"));
 });
 
 
