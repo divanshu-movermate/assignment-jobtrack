@@ -1,5 +1,3 @@
-// Generic zod-body-validation middleware factory.
-// Usage: router.post("/", validate(createCustomerSchema), controller.create)
 function validate(schema) {
   return function (req, res, next) {
     const result = schema.safeParse(req.body);
@@ -10,12 +8,24 @@ function validate(schema) {
         details: result.error.flatten().fieldErrors,
       });
     }
-    req.body = result.data;
+    req.body = result.data; // req.body is safely writable, this part is fine
     next();
   };
 }
 
-module.exports = validate;
+function validateQuery(schema) {
+  return function (req, res, next) {
+    const result = schema.safeParse(req.query);
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        details: result.error.flatten().fieldErrors,
+      });
+    }
+    req.validatedQuery = result.data; // ✅ use a separate property, don't reassign req.query
+    next();
+  };
+}
 
-
-
+module.exports = { validate, validateQuery };

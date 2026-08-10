@@ -1,7 +1,10 @@
+const { success } = require("zod");
 const User = require("../models/user.models");
 const ApiResponse = require("../utils/ApiResponse")
 const asyncHandler = require("../utils/asyncHandler")
 const generateToken = require("../utils/generateToken");
+const Job = require("../models/job.models");
+const ApiError = require("../utils/ApiError");
 
 
 
@@ -13,20 +16,11 @@ const createUser = asyncHandler( async (req, res)=>{
     // })
 
     const {name, email, password, role} = req.body
-
-    // if([name, email, password, role].some((field)=>field?.trim()==="")){
-    //     return res.status(400).json({ success: false, error: "All fields are required" });
-
-        
-    // }
-    //Have to do validation through zod
-
     
     const existedUser = await User.findOne({ email });
 
     if(existedUser){
-        return res.status(409)
-        .json({ success: false, error: "Email already exist" });
+        throw new ApiError("Email already exist", 403)
     }
 
 
@@ -44,8 +38,7 @@ const createUser = asyncHandler( async (req, res)=>{
 
 
     if(!createdUser){
-        return res.status(500)
-        .json({ success: false, error: "Something Went wrong while registering the user" });
+      throw new ApiError("Something Went wrong while registering the user", 404)
     }
 
     return res.status(201).json(
@@ -55,14 +48,75 @@ const createUser = asyncHandler( async (req, res)=>{
 
 
 
+
+ 
+// GET /api/users/staff?search=&page=&limit=
+// Lists all staff users, each with their currently assigned jobs populated.
+// search matches staff name/email. Same pattern as listJobs/listCustomers —
+// filter first in Mongo, no fetch-all-then-filter-in-JS.
+const listStaffWithJobs = asyncHandler(async (req, res) => {
+  const { search, page, limit } = req.query;
+
+  const filter = { role: "staff" };
+
+  if (search) {
+    const pattern = new RegExp(search, "i");
+    filter.$or = [{ name: pattern }, { email: pattern }];
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [staff, total] = await Promise.all([
+    User.find(filter)
+      .select("-password -refreshToken")
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit),
+    User.countDocuments(filter),
+  ]);
+
+  // For each staff member, fetch their currently assigned jobs.
+  // Jobs reference staff via assignedCrew: ObjectId[], so we look up jobs
+  // where assignedCrew contains this user's _id.
+  const staffWithJobs = await Promise.all(
+    staff.map(async (member) => {
+      const jobs = await Job.find({ assignedCrew: member._id })
+        .select("pickupAddress dropoffAddress status scheduledDate estimatedPrice")
+        .populate("customer", "name email")
+        .sort({ scheduledDate: 1 });
+
+      return {
+        ...member.toObject(),
+        assignedJobs: jobs,
+      };
+    })
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        staff: staffWithJobs,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit) || 1,
+        },
+      },
+      "Staff list fetched successfully"
+    )
+  );
+});
+
+
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
 
   if (!user) {
-    return res.status(401)
-    .json({ success: false, error: "User with email already exists." });
+    throw new ApiError("User with email already exists.", 403)
   }
 
   const isPasswordValid = await user.isPasswordCorrect(password);
@@ -118,8 +172,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .clearCookie("token", options)
-    .json(new ApiResponse(200,
-         {}, "User logged out successfully"));
+    .json(new ApiResponse(200,{}, "User logged out successfully"));
 });
 
 
@@ -127,4 +180,4 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 
 
-module.exports = { loginUser, logoutUser, meUser, adminUser, createUser };
+module.exports = { loginUser, logoutUser, meUser, adminUser, createUser, listStaffWithJobs };

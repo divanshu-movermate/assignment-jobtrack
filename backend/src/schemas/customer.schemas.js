@@ -21,15 +21,11 @@ const createCustomerSchema = z.object({
 // .partial() on the base object; email/name still validate their format if present.
 const updateCustomerSchema = createCustomerSchema.partial();
 
-// GET /api/customers?search=&page=&limit=
+
 const listCustomersQuerySchema = z.object({
   search: z.string().trim().optional().default(""),
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
 });
 
-module.exports = {
-  createCustomerSchema,
-  updateCustomerSchema,
-  listCustomersQuerySchema,
-};
+module.exports = {createCustomerSchema, updateCustomerSchema, listCustomersQuerySchema};
