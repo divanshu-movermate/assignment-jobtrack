@@ -12,7 +12,7 @@ const authController = require("../controllers/auth.controllers");
 
 router.post("/login", validate(loginSchema), authController.loginUser);
 router.post("/logout", authController.logoutUser);
-router.get("/dashboard", authenticate, authController.meUser);
+router.get("/staffdashboard", authenticate, authController.meUser);
 router.post(
   "/users",
   authenticate,
