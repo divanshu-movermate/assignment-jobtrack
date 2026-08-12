@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { JobStatus } from "@/lib/types";
 
-const STATUS_LABEL: Record<JobStatus, string> = {
+export const STATUS_LABEL: Record<JobStatus, string> = {
   quote_requested: "Quote requested",
   quoted: "Quoted",
   confirmed: "Confirmed",
