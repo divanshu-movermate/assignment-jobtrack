@@ -16,7 +16,7 @@ export function Sidebar() {
   const { user } = useAuth();
 
   return (
-    <aside className="w-60 flex-shrink-0 bg-ink-900 text-white p-3.5 flex flex-col gap-7">
+    <aside className="w-60 flex-shrink-0 bg-ink text-white p-3.5 flex flex-col gap-7">
       <div className="flex items-center gap-2 px-2.5 font-heading font-extrabold text-[17px]">
         <span className="w-2.5 h-2.5 rounded-full bg-brand shadow-[0_0_0_4px_rgba(61,79,224,0.25)]" />
         JobTrack
