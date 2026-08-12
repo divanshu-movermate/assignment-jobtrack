@@ -20,7 +20,7 @@ const createUser = asyncHandler( async (req, res)=>{
     const existedUser = await User.findOne({ email });
 
     if(existedUser){
-        throw new ApiError("Email already exist", 403)
+        throw new ApiError(403, "Email already exist")
     }
 
 
@@ -38,7 +38,7 @@ const createUser = asyncHandler( async (req, res)=>{
 
 
     if(!createdUser){
-      throw new ApiError("Something Went wrong while registering the user", 404)
+      throw new ApiError(404, "Something Went wrong while registering the user")
     }
 
     return res.status(201).json(
@@ -116,7 +116,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email });
 
   if (!user) {
-    throw new ApiError("User with email already exists.", 403)
+    throw new ApiError(403, "User with email doesn't exists.")
   }
 
   const isPasswordValid = await user.isPasswordCorrect(password);
@@ -132,7 +132,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production", // false in dev, true in production
+    sameSite: "lax", // add this too — helps with cookie handling across localhost ports
   };
 
   return res

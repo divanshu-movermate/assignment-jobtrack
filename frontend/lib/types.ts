@@ -39,7 +39,7 @@ export type JobStatus =
 
 export interface JobNote {
   text: string;
-  author: string;
+  author: User | string;
   createdAt: string;
 }
 
@@ -65,3 +65,43 @@ export interface Paginated<T> {
   page: number;
   limit: number;
 }
+
+
+export interface ApiSuccess<T> {
+  success: true;
+  data: T;
+}
+ 
+export interface ApiFailure {
+  success: false;
+  error: string;
+  fields?: Record<string, string[] | undefined>;
+}
+ 
+export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
+ 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+ 
+export interface CustomerListData {
+  customers: Customer[];
+  pagination: PaginationMeta;
+}
+ 
+export interface JobListData {
+  jobs: Job[];
+  pagination: PaginationMeta;
+}
+ 
+export interface DashboardStats {
+  statusCounts: Record<JobStatus, number>;
+  pipelineRevenue: number;
+  jobsThisMonth: number;
+  jobsLastMonth: number;
+  topCustomers: { customerId: string; name: string; email: string; jobCount: number }[];
+}
+ 
