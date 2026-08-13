@@ -1,19 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
-import type { Job, JobStatus } from "@/lib/types";
+import { apiFetch } from "@/lib/api";
+import type { Customer, Job } from "@/lib/types";
 
-interface CreateEditModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (values: JobFormValues) => Promise<Job>;
-  job?: Job | null;
-}
-
-export interface JobFormValues {
+interface JobFormValues {
   customer: string;
   pickupAddress: string;
   dropoffAddress: string;
@@ -21,32 +14,12 @@ export interface JobFormValues {
   estimatedPrice: number;
 }
 
-const STATUS_OPTIONS = [
-  {
-    value: "quote_requested",
-    label: "Quote Requested",
-  },
-  {
-    value: "quoted",
-    label: "Quoted",
-  },
-  {
-    value: "confirmed",
-    label: "Confirmed",
-  },
-  {
-    value: "in_progress",
-    label: "In Progress",
-  },
-  {
-    value: "completed",
-    label: "Completed",
-  },
-  {
-    value: "cancelled",
-    label: "Cancelled",
-  },
-];
+interface CreateEditModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (values: JobFormValues) => Promise<unknown>;
+  job?: Job | null;
+}
 
 export function CreateEditModal({
   open,
@@ -54,43 +27,70 @@ export function CreateEditModal({
   onSubmit,
   job,
 }: CreateEditModalProps) {
-  const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-  } = useForm<JobFormValues>({
-    defaultValues: {
-      customer: "",
-      pickupAddress: "",
-      dropoffAddress: "",
-      scheduledDate: "",
-      estimatedPrice: 0,
-    },
+  const [form, setForm] = useState<JobFormValues>({
+    customer: "",
+    pickupAddress: "",
+    dropoffAddress: "",
+    scheduledDate: "",
+    estimatedPrice: 0,
   });
 
-  const status = watch("customer");
+  const [priceError, setPriceError] = useState("");
 
+  /*
+   * Fetch customers when modal opens
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    const fetchCustomers = async () => {
+      setLoadingCustomers(true);
+
+      try {
+        const response = await apiFetch<{
+          customers: Customer[];
+        }>("/customers");
+
+        setCustomers(response.customers ?? []);
+      } catch (error) {
+        console.error("Failed to fetch customers:", error);
+        setCustomers([]);
+      } finally {
+        setLoadingCustomers(false);
+      }
+    };
+
+    fetchCustomers();
+  }, [open]);
+
+  /*
+   * Populate form when editing
+   */
   useEffect(() => {
     if (!open) return;
 
     if (job) {
-      reset({
-        customer:
-          typeof job.customer === "string"
-            ? job.customer
-            : job.customer.name,
-        pickupAddress: job.pickupAddress,
-        dropoffAddress: job.dropoffAddress,
-        scheduledDate: job.scheduledDate,
+      const customerId =
+        typeof job.customer === "string"
+          ? job.customer
+          : job.customer?._id;
+
+      setForm({
+        customer: customerId ?? "",
+        pickupAddress: job.pickupAddress ?? "",
+        dropoffAddress: job.dropoffAddress ?? "",
+        scheduledDate: job.scheduledDate
+          ? job.scheduledDate.substring(0, 10)
+          : "",
         estimatedPrice:
           job.estimatedPrice ?? job.finalPrice ?? 0,
       });
     } else {
-      reset({
+      setForm({
         customer: "",
         pickupAddress: "",
         dropoffAddress: "",
@@ -98,155 +98,210 @@ export function CreateEditModal({
         estimatedPrice: 0,
       });
     }
-  }, [open, job, reset]);
 
-  if (!open) {
-    return null;
-  }
+    setPriceError("");
+  }, [open, job]);
 
-  const submitForm = async (values: JobFormValues) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]:
+        name === "estimatedPrice"
+          ? value === ""
+            ? 0
+            : Number(value)
+          : value,
+    }));
+
+    if (name === "estimatedPrice") {
+      setPriceError("");
+    }
+  };
+
+  const submitForm = async () => {
+    if (!form.customer) return;
+
+    if (!form.estimatedPrice || form.estimatedPrice <= 0) {
+      setPriceError("Enter a valid amount");
+      return;
+    }
+
+    setSaving(true);
+
     try {
-      setLoading(true);
-      await onSubmit(values);
+      await onSubmit({
+        customer: form.customer,
+        pickupAddress: form.pickupAddress,
+        dropoffAddress: form.dropoffAddress,
+        scheduledDate: form.scheduledDate,
+        estimatedPrice: form.estimatedPrice,
+      });
+
       onClose();
     } catch (error) {
       console.error("Failed to save job:", error);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-surface p-6 shadow-xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-ink-900">
-              {job ? "Edit Job" : "Create Job"}
-            </h2>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={job ? "Edit job" : "Create job"}
+    >
+      <div className="w-full max-w-md">
+        <div className="flex flex-col gap-3">
 
-            <p className="mt-1 text-sm text-ink-500">
-              {job
-                ? "Update the job details."
-                : "Create a new job."}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xl text-ink-500 hover:text-ink-900"
-          >
-            ×
-          </button>
-        </div>
-
-        <form
-          onSubmit={handleSubmit(submitForm)}
-          className="space-y-4"
-        >
           {/* Customer */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-ink-900">
               Customer
             </label>
 
-            <input
-              {...register("customer", {
-                required: "Customer is required",
-              })}
-              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              placeholder="Customer name"
-            />
+            <select
+              name="customer"
+              value={form.customer}
+              onChange={handleChange}
+              disabled={loadingCustomers}
+              className="h-9 w-full rounded-md border border-line bg-white px-2.5 text-xs text-ink-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            >
+              <option value="">
+                {loadingCustomers
+                  ? "Loading customers..."
+                  : "Select customer"}
+              </option>
+
+              {customers.map((customer) => (
+                <option key={customer._id} value={customer._id}>
+                  {customer.name}
+                  {customer.email ? ` — ${customer.email}` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Pickup */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">
-              Pickup Address
-            </label>
+          {/* Pickup + Dropoff */}
+          <div className="grid grid-cols-2 gap-2">
 
-            <input
-              {...register("pickupAddress", {
-                required: "Pickup address is required",
-              })}
-              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              placeholder="Pickup address"
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-ink-900">
+                Pickup address
+              </label>
+
+              <input
+                name="pickupAddress"
+                type="text"
+                value={form.pickupAddress}
+                onChange={handleChange}
+                placeholder="412 Baker St, Austin, TX"
+                className="h-9 w-full rounded-md border border-line bg-white px-2.5 text-xs outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-ink-900">
+                Dropoff address
+              </label>
+
+              <input
+                name="dropoffAddress"
+                type="text"
+                value={form.dropoffAddress}
+                onChange={handleChange}
+                placeholder="88 Willow Ave, Round Rock, TX"
+                className="h-9 w-full rounded-md border border-line bg-white px-2.5 text-xs outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+
           </div>
 
-          {/* Dropoff */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">
-              Dropoff Address
-            </label>
+          {/* Date + Price */}
+          <div className="grid grid-cols-2 gap-2">
 
-            <input
-              {...register("dropoffAddress", {
-                required: "Dropoff address is required",
-              })}
-              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              placeholder="Dropoff address"
-            />
-          </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-ink-900">
+                Scheduled date
+              </label>
 
-          {/* Scheduled Date */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">
-              Scheduled Date
-            </label>
+              <input
+                name="scheduledDate"
+                type="date"
+                value={form.scheduledDate}
+                onChange={handleChange}
+                className="h-9 w-full rounded-md border border-line bg-white px-2.5 text-xs outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
 
-            <input
-              type="date"
-              {...register("scheduledDate", {
-                required: "Scheduled date is required",
-              })}
-              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            />
-          </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-ink-900">
+                Estimated price
+              </label>
 
-          {/* Estimated Price */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink">
-              Estimated Price
-            </label>
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-ink-500">
+                  $
+                </span>
 
-            <input
-              type="number"
-              step="0.01"
-              {...register("estimatedPrice", {
-                required: "Estimated price is required",
-                valueAsNumber: true,
-                min: {
-                  value: 0,
-                  message: "Price cannot be negative",
-                },
-              })}
-              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              placeholder="0.00"
-            />
+                <input
+                  name="estimatedPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={
+                    form.estimatedPrice === 0
+                      ? ""
+                      : form.estimatedPrice
+                  }
+                  onChange={handleChange}
+                  placeholder="0.00"
+                  className={`h-9 w-full rounded-md border bg-white pl-6 pr-2.5 text-xs outline-none ${
+                    priceError
+                      ? "border-[#D0453C] focus:ring-2 focus:ring-[#D0453C]/20"
+                      : "border-line focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  }`}
+                />
+              </div>
+
+              {priceError && (
+                <span className="text-[10px] text-[#D0453C]">
+                  {priceError}
+                </span>
+              )}
+            </div>
+
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-2 pt-4">
             <Button
-              type="button"
               variant="secondary"
+              size="sm"
               onClick={onClose}
             >
               Cancel
             </Button>
 
-            <Button type="submit" disabled={loading}>
-              {loading
-                ? "Saving..."
+            <Button
+              size="sm"
+              onClick={submitForm}
+              disabled={saving}
+            >
+              {saving
+                ? "Creating..."
                 : job
-                ? "Update Job"
-                : "Create Job"}
+                ? "Save changes"
+                : "Create job"}
             </Button>
           </div>
-        </form>
+
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

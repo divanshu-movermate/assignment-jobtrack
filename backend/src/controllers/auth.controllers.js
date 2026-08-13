@@ -48,6 +48,56 @@ const createUser = asyncHandler( async (req, res)=>{
 
 
 
+const getAllTeam = async (req, res) => {
+  try {
+    const users = await User.find({})
+      .select("-password")
+      .sort({ createdAt: -1 });
+
+    const jobs = await Job.find({})
+      .select(
+        "_id customer pickupAddress dropoffAddress scheduledDate estimatedPrice status assignedCrew"
+      )
+      .populate("customer", "_id name email");
+
+    const team = users.map((user) => {
+      const assignedJobs = jobs.filter((job) =>
+        job.assignedCrew?.some(
+          (crewId) => crewId.toString() === user._id.toString()
+        )
+      );
+
+      return {
+        ...user.toObject(),
+        assignedJobs,
+      };
+    });
+
+    return res.status(200).json({
+      statusCode: 200,
+      data: {
+        users: team,
+        pagination: {
+          total: team.length,
+          totalPages: 1,
+        },
+      },
+      message: "All users fetched successfully",
+      success: true,
+    });
+  } catch (error) {
+    console.error("GET ALL TEAM ERROR:", error);
+
+    return res.status(500).json({
+      statusCode: 500,
+      data: null,
+      message: "Failed to fetch users",
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 
  
 // GET /api/users/staff?search=&page=&limit=
@@ -181,4 +231,4 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 
 
-module.exports = { loginUser, logoutUser, meUser, adminUser, createUser, listStaffWithJobs };
+module.exports = { loginUser, logoutUser, meUser, adminUser, createUser, listStaffWithJobs, getAllTeam };

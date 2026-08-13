@@ -52,7 +52,7 @@ export interface Job {
   estimatedPrice: number;
   finalPrice: number | null;
   status: JobStatus;
-  assignedCrew: User[] | string[];
+  assignedCrew: User[];
   notes: JobNote[];
   createdBy: string;
   createdAt: string;

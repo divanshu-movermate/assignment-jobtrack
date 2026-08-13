@@ -8,13 +8,20 @@ import {
   TableCell,
   TableHeaderCell,
 } from "@/components/ui/Table";
-import { STATUS_LABEL, Badge } from "@/components/ui/Badge";
+import { STATUS_LABEL, StatusBadge } from "@/components/ui/Badge";
 import type { Job } from "@/lib/types";
+import { PencilLine, Trash } from "lucide-react";
 
-function customerName(job: Job) {
-  return typeof job.customer === "string"
-    ? job.customer
-    : job.customer.name;
+function getCustomerName(customer: Job["customer"]) {
+  return typeof customer === "string"
+    ? customer
+    : customer.name;
+}
+
+function getCustomerEmail(customer: Job["customer"]) {
+  return typeof customer === "string"
+    ? "-"
+    : customer.email;
 }
 
 function formatDate(iso: string) {
@@ -32,6 +39,15 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 export function JobsTable({ jobs }: { jobs: Job[] }) {
   const router = useRouter();
 
@@ -40,10 +56,11 @@ export function JobsTable({ jobs }: { jobs: Job[] }) {
       <TableHead>
         <TableRow>
           <TableHeaderCell>Customer</TableHeaderCell>
-          <TableHeaderCell>Route</TableHeaderCell>
           <TableHeaderCell>Scheduled</TableHeaderCell>
-          <TableHeaderCell>Estimate</TableHeaderCell>
           <TableHeaderCell>Status</TableHeaderCell>
+          <TableHeaderCell>Crew</TableHeaderCell>
+          <TableHeaderCell>Est. Price</TableHeaderCell>
+          <TableHeaderCell>Action</TableHeaderCell>
         </TableRow>
       </TableHead>
 
@@ -54,18 +71,38 @@ export function JobsTable({ jobs }: { jobs: Job[] }) {
             onClick={() => router.push(`/jobs/${job._id}`)}
             className="cursor-pointer hover:bg-paper"
           >
-            <TableCell className="font-semibold">
-              {customerName(job)}
+            <TableCell >
+              <p className="font-semibold">{getCustomerName(job.customer)}</p>
+              <p className="text-xs font-light">{getCustomerEmail(job.customer)}</p>
+              
             </TableCell>
 
             <TableCell className="text-ink-500">
-              {job.pickupAddress}
-              <span className="mx-1">→</span>
-              {job.dropoffAddress}
+              {formatDate(job.scheduledDate)}
             </TableCell>
 
             <TableCell>
-              {formatDate(job.scheduledDate)}
+              <StatusBadge status={job.status} />
+            </TableCell>
+
+
+            <TableCell>
+                {job.assignedCrew?.length ? (
+                  <div className="flex items-center -space-x-1.5">
+                    {job.assignedCrew.map((member) => (
+                      <span
+                        key={member._id}
+                        title={member.name}
+                        className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-indigo-100 text-[9px] font-semibold text-indigo-700"
+                      >
+                        {getInitials(member.name)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-ink-400">—</span>
+                )}
+
             </TableCell>
 
             <TableCell>
@@ -74,8 +111,9 @@ export function JobsTable({ jobs }: { jobs: Job[] }) {
               )}
             </TableCell>
 
-            <TableCell>
-              <Badge>{STATUS_LABEL[job.status]}</Badge>
+            <TableCell className="flex gap-6 ">
+              <PencilLine className="h-4 w-4"/>
+              <Trash className="h-4 w-4"/>
             </TableCell>
           </TableRow>
         ))}

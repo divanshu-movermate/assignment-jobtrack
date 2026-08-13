@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Topbar } from "@/components/layout/Topbar";
-import { useJobs } from "@/lib/hooks/useJob";
+import { useJobs } from "@/lib/hooks/useJobs";
 import { JobsToolbar } from "@/components/jobs/JobsToolbar";
 import { JobsTable } from "@/components/jobs/JobsTable";
 import { JobsTableSkeleton } from "@/components/jobs/JobsTableSkeleton";
@@ -24,6 +24,7 @@ export default function JobsPage() {
     setPage,
     createJob,
   } = useJobs();
+
   const [modalOpen, setModalOpen] = useState(false);
 
   const hasFilters = !!query.search || !!query.status;
@@ -31,6 +32,7 @@ export default function JobsPage() {
   return (
     <AppShell>
       <Topbar title="Jobs" />
+
       <div className="p-7">
         <JobsToolbar
           search={query.search}
@@ -43,7 +45,9 @@ export default function JobsPage() {
         />
 
         {error && (
-          <p className="text-sm font-medium text-[#C23B3B] mb-4">{error}</p>
+          <p className="mb-4 text-sm font-medium text-[#C23B3B]">
+            {error}
+          </p>
         )}
 
         {loading ? (
@@ -54,18 +58,29 @@ export default function JobsPage() {
             onClearFilters={() => {
               setSearch("");
               setStatus("");
+              setPage(1);
             }}
             onCreate={() => setModalOpen(true)}
           />
         ) : (
           <>
             <JobsTable jobs={jobs} />
-            {pagination && <JobsPagination pagination={pagination} onPageChange={setPage} />}
+
+            {pagination && (
+              <JobsPagination
+                pagination={pagination}
+                onPageChange={setPage}
+              />
+            )}
           </>
         )}
       </div>
 
-      <CreateEditModal open={modalOpen} onClose={() => setModalOpen(false)} onSubmit={createJob} />
+      <CreateEditModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={createJob}
+      />
     </AppShell>
   );
 }

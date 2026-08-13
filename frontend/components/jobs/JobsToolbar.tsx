@@ -12,9 +12,14 @@ const STATUS_OPTIONS = [
 ];
 
 const SORT_OPTIONS = [
-  { value: "-scheduledDate", label: "Scheduled date (newest)" },
-  { value: "scheduledDate", label: "Scheduled date (oldest)" },
-  { value: "-createdAt", label: "Recently created" },
+  {
+    value: "scheduledDate:desc",
+    label: "Scheduled date (newest)",
+  },
+  {
+    value: "scheduledDate:asc",
+    label: "Scheduled date (oldest)",
+  },
 ];
 
 interface JobsToolbarProps {

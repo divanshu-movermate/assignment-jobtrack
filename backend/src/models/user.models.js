@@ -26,6 +26,12 @@ const userSchema = new mongoose.Schema(
             enum: ["admin", "staff"],
             default: "staff",
         },
+        assignedJobs: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Job",
+            },
+            ],
 
     },
     {

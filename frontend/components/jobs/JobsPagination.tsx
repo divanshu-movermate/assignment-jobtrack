@@ -16,7 +16,7 @@ export function JobsPagination({ pagination, onPageChange }: JobsPaginationProps
   return (
     <div className="flex items-center justify-between mt-4 text-[13px] text-ink-500">
       <span>
-        Showing {start}–{end} of {total}
+        Showing {start}–{end} of {total} jobs
       </span>
       <div className="flex items-center gap-1.5">
         <button

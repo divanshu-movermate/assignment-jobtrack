@@ -2,83 +2,101 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import type { Job, JobListData, JobStatus } from "@/lib/types";
-import type { JobFormValues } from "@/lib/schemas/jobSchema";
+import type { Job, JobStatus } from "@/lib/types";
 
-export interface JobsQuery {
-  page: number;
-  limit: number;
-  search: string;
-  status: JobStatus | "";
-  sort: string; // e.g. "-scheduledDate" | "scheduledDate"
+interface JobResponse {
+  job: Job;
 }
 
-const DEFAULT_QUERY: JobsQuery = {
-  page: 1,
-  limit: 10,
-  search: "",
-  status: "",
-  sort: "-scheduledDate",
-};
-
-export function useJobs(initial: Partial<JobsQuery> = {}) {
-  const [query, setQuery] = useState<JobsQuery>({ ...DEFAULT_QUERY, ...initial });
-  const [data, setData] = useState<JobListData | null>(null);
+export function useJob(id: string) {
+  const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchJobs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams();
-    params.set("page", String(query.page));
-    params.set("limit", String(query.limit));
-    if (query.search) params.set("search", query.search);
-    if (query.status) params.set("status", query.status);
-    if (query.sort) params.set("sort", query.sort);
-
+  const refresh = useCallback(async () => {
     try {
-      const result = await apiFetch<JobListData>(`/jobs?${params.toString()}`);
-      setData(result);
+      setLoading(true);
+      setError(null);
+
+      const data = await apiFetch<JobResponse>(`/jobs/${id}`);
+
+      // API returns { job: {...} }
+      setJob(data.job);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load jobs");
+      setError(
+        err instanceof Error ? err.message : "Failed to load job"
+      );
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [id]);
 
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (id) {
+      refresh();
+    }
+  }, [id, refresh]);
 
-  const setSearch = (search: string) => setQuery((q) => ({ ...q, search, page: 1 }));
-  const setStatus = (status: JobStatus | "") => setQuery((q) => ({ ...q, status, page: 1 }));
-  const setSort = (sort: string) => setQuery((q) => ({ ...q, sort, page: 1 }));
-  const setPage = (page: number) => setQuery((q) => ({ ...q, page }));
-
-  const createJob = useCallback(
-    async (values: JobFormValues) => {
-      const job = await apiFetch<Job>("/jobs", {
-        method: "POST",
-        body: JSON.stringify(values),
+  const updateStatus = useCallback(
+    async (status: JobStatus) => {
+      const data = await apiFetch<JobResponse>(`/jobs/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
       });
-      await fetchJobs();
-      return job;
+
+      setJob(data.job);
+      return data.job;
     },
-    [fetchJobs]
+    [id]
+  );
+
+  const addNote = useCallback(
+    async (text: string) => {
+      const data = await apiFetch<JobResponse>(`/jobs/${id}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      });
+
+      setJob(data.job);
+      return data.job;
+    },
+    [id]
+  );
+
+  const updateJob = useCallback(
+  async (values: Partial<Job>) => {
+    const data = await apiFetch<JobResponse>(`/jobs/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(values),
+    });
+
+    setJob(data.job);
+    return data.job;
+  },
+  [id]
+);
+
+  const updateCrew = useCallback(
+    async (crewIds: string[]) => {
+      const data = await apiFetch<JobResponse>(`/jobs/${id}/assign`, {
+        method: "POST",
+        body: JSON.stringify({ assignedCrew: crewIds }),
+      });
+
+      setJob(data.job);
+      return data.job;
+    },
+    [id]
   );
 
   return {
-    query,
-    jobs: data?.jobs ?? [],
-    pagination: data?.pagination ?? null,
+    job,
     loading,
     error,
-    setSearch,
-    setStatus,
-    setSort,
-    setPage,
-    createJob,
-    refresh: fetchJobs,
+    refresh,
+    updateStatus,
+    addNote,
+    updateCrew,
+    updateJob
   };
 }

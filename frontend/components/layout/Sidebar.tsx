@@ -38,7 +38,7 @@ export function Sidebar() {
           <div className="text-[11px] font-bold tracking-widest uppercase text-[#6B7285] px-2.5 mb-2">
             Admin
           </div>
-          <NavLink href="/team" label="Team" icon={UserCog} active={pathname.startsWith("/team")} />
+          <NavLink href="/teams" label="Team" icon={UserCog} active={pathname.startsWith("/team")} />
         </nav>
       )}
     </aside>

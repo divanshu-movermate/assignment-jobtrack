@@ -1,4 +1,4 @@
-import { ClipboardList } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface JobsEmptyStateProps {
@@ -11,7 +11,7 @@ export function JobsEmptyState({ hasFilters, onClearFilters, onCreate }: JobsEmp
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-surface py-16 text-center">
       <div className="w-11 h-11 rounded-full bg-brand-tint text-brand flex items-center justify-center">
-        <ClipboardList size={20} />
+        <Search size={20} />
       </div>
       {hasFilters ? (
         <>

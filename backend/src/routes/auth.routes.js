@@ -28,6 +28,11 @@ router.get(
   authController.listStaffWithJobs
 );
 
+router.get("/allteam", 
+  authenticate,
+  authorize("admin"), 
+  authController.getAllTeam);
+
 
 
 
