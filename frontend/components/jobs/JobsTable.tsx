@@ -82,6 +82,7 @@ export function JobsTable({ jobs }: { jobs: Job[] }) {
             </TableCell>
 
             <TableCell>
+              
               <StatusBadge status={job.status} />
             </TableCell>
 
