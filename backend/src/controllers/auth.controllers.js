@@ -1,117 +1,181 @@
-const { success } = require("zod");
 const User = require("../models/user.models");
-const ApiResponse = require("../utils/ApiResponse")
-const asyncHandler = require("../utils/asyncHandler")
-const generateToken = require("../utils/generateToken");
 const Job = require("../models/job.models");
+
+const ApiResponse = require("../utils/ApiResponse");
 const ApiError = require("../utils/ApiError");
+const asyncHandler = require("../utils/asyncHandler");
+const generateToken = require("../utils/generateToken");
 
 
 
+// CREATE USER
 
 
-const createUser = asyncHandler( async (req, res)=>{
-    // res.status(200).json({
-    //     message: 'ok'
-    // })
+const createUser = asyncHandler(async (req, res) => {
+  const { name, email, password, role } = req.body;
 
-    const {name, email, password, role} = req.body
-    
-    const existedUser = await User.findOne({ email });
+  const existedUser = await User.findOne({ email });
 
-    if(existedUser){
-        throw new ApiError(403, "Email already exist")
-    }
+  if (existedUser) {
+    throw new ApiError(403, "Email already exist");
+  }
+
+  const user = await User.create({
+    name,
+    email,
+    password,
+    role,
+  });
+
+  const createdUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+
+  if (!createdUser) {
+    throw new ApiError(
+      404,
+      "Something Went wrong while registering the user"
+    );
+  }
+
+  return res.status(201).json(
+    new ApiResponse(
+      200,
+      createdUser,
+      "User Registered Successfully"
+    )
+  );
+});
 
 
-    const user = await User.create({
-        name,
-        email,
-        password,
-        role,
-    })
 
-    const createdUser = await User.findById(user._id)
+// GET CURRENT USER PROFILE
+// Works for BOTH admin and staff
+// GET /api/auth/profile
+
+
+const getProfile = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user._id) {
+    throw new ApiError(401, "Not authenticated");
+  }
+
+  const userId = req.user._id;
+
+  // Fetch current user
+  const user = await User.findById(userId)
+    .select("-password -refreshToken");
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // IMPORTANT:
+  // Do not depend on User.assignedJobs.
+  //
+  // Jobs actually store staff IDs inside assignedCrew.
+  const assignedJobs = await Job.find({
+    assignedCrew: userId,
+  })
     .select(
-        "-password -refreshToken"
+      "_id customer pickupAddress dropoffAddress scheduledDate estimatedPrice status assignedCrew"
     )
+    .populate("customer", "_id name email")
+    .sort({ scheduledDate: -1 });
 
+  const profile = {
+    ...user.toObject(),
+    assignedJobs,
+  };
 
-    if(!createdUser){
-      throw new ApiError(404, "Something Went wrong while registering the user")
-    }
-
-    return res.status(201).json(
-       new ApiResponse(200, createdUser, "User Registered Successfully" )
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        user: profile,
+      },
+      "Profile fetched successfully"
     )
- });
+  );
+});
 
 
+// ======================================================
+// GET ALL TEAM
+// ADMIN ONLY
+// GET /api/auth/allteam
+// ======================================================
 
-const getAllTeam = async (req, res) => {
-  try {
-    const users = await User.find({})
-      .select("-password")
-      .sort({ createdAt: -1 });
+const getAllTeam = asyncHandler(async (req, res) => {
+  const users = await User.find({})
+    .select("-password -refreshToken")
+    .sort({ createdAt: -1 });
 
-    const jobs = await Job.find({})
-      .select(
-        "_id customer pickupAddress dropoffAddress scheduledDate estimatedPrice status assignedCrew"
+  const jobs = await Job.find({})
+    .select(
+      "_id customer pickupAddress dropoffAddress scheduledDate estimatedPrice status assignedCrew"
+    )
+    .populate("customer", "_id name email");
+
+  const team = users.map((user) => {
+    const assignedJobs = jobs.filter((job) =>
+      job.assignedCrew?.some(
+        (crewId) =>
+          crewId.toString() === user._id.toString()
       )
-      .populate("customer", "_id name email");
+    );
 
-    const team = users.map((user) => {
-      const assignedJobs = jobs.filter((job) =>
-        job.assignedCrew?.some(
-          (crewId) => crewId.toString() === user._id.toString()
-        )
-      );
+    return {
+      ...user.toObject(),
+      assignedJobs,
+    };
+  });
 
-      return {
-        ...user.toObject(),
-        assignedJobs,
-      };
-    });
-
-    return res.status(200).json({
-      statusCode: 200,
-      data: {
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
         users: team,
         pagination: {
           total: team.length,
           totalPages: 1,
         },
       },
-      message: "All users fetched successfully",
-      success: true,
-    });
-  } catch (error) {
-    console.error("GET ALL TEAM ERROR:", error);
-
-    return res.status(500).json({
-      statusCode: 500,
-      data: null,
-      message: "Failed to fetch users",
-      success: false,
-      error: error.message,
-    });
-  }
-};
+      "All users fetched successfully"
+    )
+  );
+});
 
 
- 
-// GET /api/users/staff?search=&page=&limit=
-// Lists all staff users, each with their currently assigned jobs populated.
-// search matches staff name/email. Same pattern as listJobs/listCustomers —
-// filter first in Mongo, no fetch-all-then-filter-in-JS.
+
+// GET STAFF WITH JOBS
+// ADMIN ONLY
+// GET /api/auth/staff
+
+
 const listStaffWithJobs = asyncHandler(async (req, res) => {
-  const { search, page, limit } = req.query;
+  const search = req.query.search || "";
 
-  const filter = { role: "staff" };
+  const page = Math.max(
+    parseInt(req.query.page || "1", 10),
+    1
+  );
+
+  const limit = Math.max(
+    parseInt(req.query.limit || "10", 10),
+    1
+  );
+
+  const filter = {
+    role: "staff",
+  };
 
   if (search) {
     const pattern = new RegExp(search, "i");
-    filter.$or = [{ name: pattern }, { email: pattern }];
+
+    filter.$or = [
+      { name: pattern },
+      { email: pattern },
+    ];
   }
 
   const skip = (page - 1) * limit;
@@ -122,17 +186,19 @@ const listStaffWithJobs = asyncHandler(async (req, res) => {
       .sort({ name: 1 })
       .skip(skip)
       .limit(limit),
+
     User.countDocuments(filter),
   ]);
 
-  // For each staff member, fetch their currently assigned jobs.
-  // Jobs reference staff via assignedCrew: ObjectId[], so we look up jobs
-  // where assignedCrew contains this user's _id.
   const staffWithJobs = await Promise.all(
     staff.map(async (member) => {
-      const jobs = await Job.find({ assignedCrew: member._id })
-        .select("pickupAddress dropoffAddress status scheduledDate estimatedPrice")
-        .populate("customer", "name email")
+      const jobs = await Job.find({
+        assignedCrew: member._id,
+      })
+        .select(
+          "_id customer pickupAddress dropoffAddress scheduledDate estimatedPrice status assignedCrew"
+        )
+        .populate("customer", "_id name email")
         .sort({ scheduledDate: 1 });
 
       return {
@@ -160,30 +226,45 @@ const listStaffWithJobs = asyncHandler(async (req, res) => {
 });
 
 
+
+// LOGIN
+
+
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
 
   if (!user) {
-    throw new ApiError(403, "User with email doesn't exists.")
+    throw new ApiError(
+      403,
+      "User with email doesn't exists."
+    );
   }
 
-  const isPasswordValid = await user.isPasswordCorrect(password);
+  const isPasswordValid =
+    await user.isPasswordCorrect(password);
 
   if (!isPasswordValid) {
-    return res.status(401).json({ success: false, error: "Invalid credentials" });
+    return res.status(401).json({
+      success: false,
+      error: "Invalid credentials",
+    });
   }
 
-  const token = generateToken({ _id: user._id, email: user.email, role: user.role });
+  const token = generateToken({
+    _id: user._id,
+    email: user.email,
+    role: user.role,
+  });
 
   const loggedInUser = await User.findById(user._id)
-  .select("-password -refreshToken");
+    .select("-password -refreshToken");
 
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // false in dev, true in production
-    sameSite: "lax", // add this too — helps with cookie handling across localhost ports
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
   };
 
   return res
@@ -192,43 +273,83 @@ const loginUser = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { user: loggedInUser, token },
+        {
+          user: loggedInUser,
+          token,
+        },
         "User logged in successfully"
       )
     );
 });
 
+
+
+// ADMIN DASHBOARD
+// ADMIN ONLY
+
+
 const adminUser = asyncHandler(async (req, res) => {
   return res.status(200).json(
-    new ApiResponse(200,
-         { user: req.user },
-          `Welcome ${req.user.name} to Admin dashboard`)
+    new ApiResponse(
+      200,
+      {
+        user: req.user,
+      },
+      `Welcome ${req.user.name} to Admin dashboard`
+    )
   );
 });
 
+
+
+// STAFF DASHBOARD
+// AUTHENTICATED USERS
+
+
 const meUser = asyncHandler(async (req, res) => {
   return res.status(200).json(
-    new ApiResponse(200,
-         { user: req.user },
-          `Welcome ${req.user.name} to personal dashboard`)
+    new ApiResponse(
+      200,
+      {
+        user: req.user,
+      },
+      `Welcome ${req.user.name} to personal dashboard`
+    )
   );
 });
+
+
+
+// LOGOUT
+
 
 const logoutUser = asyncHandler(async (req, res) => {
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
   };
 
   return res
     .status(200)
     .clearCookie("token", options)
-    .json(new ApiResponse(200,{}, "User logged out successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        {},
+        "User logged out successfully"
+      )
+    );
 });
 
 
-
-
-
-
-module.exports = { loginUser, logoutUser, meUser, adminUser, createUser, listStaffWithJobs, getAllTeam };
+module.exports = {
+  loginUser,
+  logoutUser,
+  meUser,
+  adminUser,
+  createUser,
+  listStaffWithJobs,
+  getAllTeam,
+  getProfile,
+};

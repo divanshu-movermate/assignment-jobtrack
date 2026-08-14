@@ -1,18 +1,64 @@
 const express = require("express");
+
 const router = express.Router();
 
 const authenticate = require("../middleware/authenticate");
 const authorize = require("../middleware/authorize");
-const {validate} = require("../middleware/validate");
-const { loginSchema, createUserSchema} = require("../schemas/auth.schemas");
+const { validate } = require("../middleware/validate");
+
+const {
+  loginSchema,
+  createUserSchema,
+} = require("../schemas/auth.schemas");
+
 const authController = require("../controllers/auth.controllers");
 
 
 
+// PUBLIC
 
-router.post("/login", validate(loginSchema), authController.loginUser);
-router.post("/logout", authController.logoutUser);
-router.get("/staffdashboard", authenticate, authController.meUser);
+
+router.post(
+  "/login",
+  validate(loginSchema),
+  authController.loginUser
+);
+
+router.post(
+  "/logout",
+  authController.logoutUser
+);
+
+
+
+// AUTHENTICATED USER
+
+
+// Staff + Admin can access this
+router.get(
+  "/staffdashboard",
+  authenticate,
+  authController.meUser
+);
+
+
+
+// PROFILE
+
+
+// IMPORTANT:
+// Both ADMIN and STAFF can access profile
+router.get(
+  "/profile",
+  authenticate,
+  authController.getProfile
+);
+
+
+
+// ADMIN ONLY
+
+
 router.post(
   "/users",
   authenticate,
@@ -21,6 +67,7 @@ router.post(
   authController.createUser
 );
 
+
 router.get(
   "/staff",
   authenticate,
@@ -28,12 +75,13 @@ router.get(
   authController.listStaffWithJobs
 );
 
-router.get("/allteam", 
+
+router.get(
+  "/allteam",
   authenticate,
-  authorize("admin"), 
-  authController.getAllTeam);
-
-
+  authorize("admin"),
+  authController.getAllTeam
+);
 
 
 module.exports = router;

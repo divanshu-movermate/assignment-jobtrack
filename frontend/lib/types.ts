@@ -2,12 +2,36 @@
 
 export type Role = "admin" | "staff";
 
+
+export interface AssignedJob {
+  _id: string;
+
+  customer?:
+    | {
+        _id?: string;
+        name?: string;
+        email?: string;
+      }
+    | string;
+
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  scheduledDate?: string;
+  estimatedPrice?: number;
+  finalPrice?: number | null;
+  status?: string;
+}
+
+
 export interface User {
   _id: string;
   name: string;
   email: string;
   role: Role;
   createdAt: string;
+  assignedJobs?: AssignedJob[];
+
+
 }
 
 export interface Address {
