@@ -1,7 +1,5 @@
 require("dotenv").config();
 
-
-
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -21,7 +19,7 @@ app.use(
   cors({
     origin: process.env.CLIENT_ORIGIN,
     credentials: true,
-  })
+  }),
 );
 app.use(express.json());
 app.use(cookieParser());
@@ -42,7 +40,7 @@ app.use((req, res) => {
 
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
