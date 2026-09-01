@@ -42,7 +42,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-paper px-4">
-      <div className="w-full max-w-[360px] bg-surface border border-line rounded-lg p-8">
+      <div className="w-full max-w-90 bg-surface border border-line rounded-lg p-8">
         <div className="flex items-center justify-center gap-2 mb-1.5 font-heading font-extrabold text-[17px] text-ink-900">
           <span className="w-2.5 h-2.5 rounded-full bg-brand shadow-[0_0_0_4px_rgba(61,79,224,0.25)]" />
           JobTrack
